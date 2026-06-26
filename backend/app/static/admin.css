@@ -226,3 +226,8 @@ textarea {
 .error-card {
     border-left: 6px solid var(--danger);
 }
+
+.ignored-row {
+    background: #fff0f0;
+    color: #7a1c1c;
+}

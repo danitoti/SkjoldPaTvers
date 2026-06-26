@@ -23,10 +23,30 @@
             <h2>Test EMIT-streng</h2>
 
             <form method="post" action="/admin/emit-test">
+                <label>Velg løp for validering mot poster</label>
+                <select name="race_id">
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                {% if selected_race %}
+                    <p class="muted">
+                        Validerer mot {{ controls|length }} poster i {{ selected_race.name }}.
+                    </p>
+                {% else %}
+                    <p class="muted">
+                        Ingen løp valgt. Parseren fungerer, men validering mot løype blir ikke gjort.
+                    </p>
+                {% endif %}
+
                 <label>Lim inn tekst fra EMIT-skanner</label>
                 <textarea name="raw_text" rows="18" spellcheck="false" required>{{ raw_text }}</textarea>
 
-                <button type="submit">Parse tekst</button>
+                <button type="submit">Parse og valider</button>
             </form>
         </section>
 
@@ -76,21 +96,131 @@
                     <h2>Advarsler</h2>
 
                     {% if parsed.warnings %}
+                        <h3>Parser</h3>
                         <ul>
                             {% for warning in parsed.warnings %}
                                 <li>{{ warning }}</li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>Ingen advarsler.</p>
+                        <p>Ingen parseradvarsler.</p>
+                    {% endif %}
+
+                    {% if validation %}
+                        <h3>Løypevalidering</h3>
+
+                        {% if validation.warnings %}
+                            <ul>
+                                {% for warning in validation.warnings %}
+                                    <li>{{ warning }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>Ingen valideringsadvarsler.</p>
+                        {% endif %}
                     {% endif %}
                 </div>
             </section>
 
+            {% if validation %}
+                <section class="grid">
+                    <div class="card">
+                        <h2>Valideringsoppsummering</h2>
+
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <th>Gyldige stemplinger</th>
+                                    <td>{{ validation.valid_count }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Ignorerte stemplinger</th>
+                                    <td>{{ validation.ignored_count }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Ukjente EMIT-koder</th>
+                                    <td>{{ validation.unknown_control_count }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Duplikater</th>
+                                    <td>{{ validation.duplicate_count }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <h2>Poster i valgt løp</h2>
+
+                        {% if controls %}
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nr</th>
+                                        <th>Navn</th>
+                                        <th>EMIT</th>
+                                        <th>Mål</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for control in controls %}
+                                        <tr>
+                                            <td>{{ control.sort_order }}</td>
+                                            <td>{{ control.name }}</td>
+                                            <td>{{ control.emit_code or "" }}</td>
+                                            <td>{% if control.is_finish %}Ja{% else %}Nei{% endif %}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>Ingen poster er lagt inn for valgt løp.</p>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endif %}
+
             <section class="card">
                 <h2>Stemplinger</h2>
 
-                {% if parsed.punches %}
+                {% if validation %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sekvens</th>
+                                <th>EMIT-kode</th>
+                                <th>Post</th>
+                                <th>Strekktid</th>
+                                <th>Akkumulert</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for punch in validation.punches %}
+                                <tr class="{% if punch.ignored %}ignored-row{% endif %}">
+                                    <td>{{ punch.sequence_code }}</td>
+                                    <td>{{ punch.emit_code or "" }}</td>
+                                    <td>
+                                        {% if punch.control_name %}
+                                            {{ punch.control_sort_order }} - {{ punch.control_name }}
+                                        {% else %}
+                                            Ukjent
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ punch.split_time_raw or "" }}</td>
+                                    <td>{{ punch.accumulated_time_raw or "" }}</td>
+                                    <td>
+                                        {% if punch.ignored %}
+                                            Ignorert: {{ punch.ignore_reason }}
+                                        {% else %}
+                                            OK
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% elif parsed.punches %}
                     <table>
                         <thead>
                             <tr>

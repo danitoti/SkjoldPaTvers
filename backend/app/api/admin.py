@@ -364,13 +364,43 @@ def update_athlete_chip(
 
 
 @router.get("/admin/emit-test")
-def emit_test_page(request: Request):
+def emit_test_page(
+    request: Request,
+    race_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+    controls = []
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    if selected_race is not None:
+        controls = (
+            db.query(Control)
+            .filter(Control.race_id == selected_race.id)
+            .order_by(Control.sort_order.asc())
+            .all()
+        )
+
     return templates.TemplateResponse(
         request=request,
         name="emit_test.html",
         context={
+            "races": races,
+            "selected_race": selected_race,
+            "controls": controls,
             "raw_text": "",
             "parsed": None,
+            "validation": None,
             "error": None,
         },
     )
@@ -380,14 +410,48 @@ def emit_test_page(request: Request):
 def emit_test_parse(
     request: Request,
     raw_text: str = Form(...),
+    race_id: int | None = Form(default=None),
+    db: Session = Depends(get_db),
 ):
     from backend.app.parser.emit_parser import parse_emit_scan
+    from backend.app.services.emit_validation_service import (
+        validate_emit_scan_against_controls,
+    )
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+    controls = []
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    if selected_race is not None:
+        controls = (
+            db.query(Control)
+            .filter(Control.race_id == selected_race.id)
+            .order_by(Control.sort_order.asc())
+            .all()
+        )
 
     parsed = None
+    validation = None
     error = None
 
     try:
         parsed = parse_emit_scan(raw_text)
+
+        if selected_race is not None:
+            validation = validate_emit_scan_against_controls(
+                parsed=parsed,
+                controls=controls,
+            )
     except Exception as exc:
         error = str(exc)
 
@@ -395,8 +459,12 @@ def emit_test_parse(
         request=request,
         name="emit_test.html",
         context={
+            "races": races,
+            "selected_race": selected_race,
+            "controls": controls,
             "raw_text": raw_text,
             "parsed": parsed,
+            "validation": validation,
             "error": error,
         },
     )
