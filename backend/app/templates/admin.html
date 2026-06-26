@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Admin</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Administrasjon</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <section class="grid">
+            <div class="card">
+                <h2>Løp</h2>
+
+                <form method="get" action="/admin">
+                    <label>Velg løp</label>
+                    <select name="race_id" onchange="this.form.submit()">
+                        {% for race in races %}
+                            <option value="{{ race.id }}"
+                                {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                                {{ race.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+
+                <hr>
+
+                <h3>Opprett nytt løp</h3>
+                <form method="post" action="/admin/races">
+                    <label>Navn</label>
+                    <input type="text" name="name" placeholder="Skjold på tvers 2026" required>
+
+                    <label>Fellesstart</label>
+                    <input type="datetime-local" name="start_time">
+
+                    <button type="submit">Opprett løp</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Status</h2>
+
+                {% if selected_race %}
+                    <p><strong>Aktivt løp:</strong> {{ selected_race.name }}</p>
+                    <p><strong>Starttid:</strong>
+                        {% if selected_race.start_time %}
+                            {{ selected_race.start_time }}
+                        {% else %}
+                            Ikke satt
+                        {% endif %}
+                    </p>
+                    <p><strong>Importerte løpere:</strong> {{ athletes_count }}</p>
+                    <p><strong>Poster:</strong> {{ controls|length }}</p>
+
+                    <hr>
+
+                    <h3>Endre starttid</h3>
+                    <form method="post" action="/admin/races/{{ selected_race.id }}/start-time">
+                        <input type="datetime-local" name="start_time" required>
+                        <button type="submit">Lagre starttid</button>
+                    </form>
+                {% else %}
+                    <p>Ingen løp opprettet ennå.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if selected_race %}
+            <section class="grid">
+                <div class="card">
+                    <h2>Importer EQ Timing CSV</h2>
+
+                    <form method="post" action="/admin/import/eqtiming" enctype="multipart/form-data">
+                        <input type="hidden" name="race_id" value="{{ selected_race.id }}">
+
+                        <label>CSV-fil</label>
+                        <input type="file" name="file" accept=".csv" required>
+
+                        <button type="submit">Importer deltakere</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Legg til post</h2>
+
+                    <form method="post" action="/admin/controls">
+                        <input type="hidden" name="race_id" value="{{ selected_race.id }}">
+
+                        <label>Rekkefølge</label>
+                        <input type="number" name="sort_order" min="1" required>
+
+                        <label>Navn</label>
+                        <input type="text" name="name" placeholder="Hodnafjell" required>
+
+                        <label>EMIT-kode</label>
+                        <input type="text" name="emit_code" placeholder="100">
+
+                        <label class="checkbox">
+                            <input type="checkbox" name="is_finish">
+                            Dette er mål
+                        </label>
+
+                        <button type="submit">Legg til post</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Poster i løypa</h2>
+
+                {% if controls %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nr</th>
+                                <th>Navn</th>
+                                <th>EMIT-kode</th>
+                                <th>Mål</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for control in controls %}
+                                <tr>
+                                    <td>{{ control.sort_order }}</td>
+                                    <td>{{ control.name }}</td>
+                                    <td>{{ control.emit_code or "" }}</td>
+                                    <td>
+                                        {% if control.is_finish %}
+                                            Ja
+                                        {% else %}
+                                            Nei
+                                        {% endif %}
+                                    </td>
+                                    <td class="right">
+                                        <form method="post" action="/admin/controls/{{ control.id }}/delete">
+                                            <button class="danger" type="submit">Slett</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>Ingen poster lagt inn ennå.</p>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        <section class="card">
+            <h2>Hendelseslogg</h2>
+
+            {% if events %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tid</th>
+                            <th>Nivå</th>
+                            <th>Kilde</th>
+                            <th>Melding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                            <tr>
+                                <td>{{ event.created_at }}</td>
+                                <td>{{ event.severity }}</td>
+                                <td>{{ event.source }}</td>
+                                <td>{{ event.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen hendelser ennå.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
