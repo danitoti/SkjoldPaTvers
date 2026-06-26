@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Resultater</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Resultater</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Velg løp</h2>
+
+            <form method="get" action="/admin/results">
+                <select name="race_id" onchange="this.form.submit()">
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Resultatliste</h2>
+
+            {% if rows %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plass</th>
+                            <th>Startnr</th>
+                            <th>Navn</th>
+                            <th>Kjønn</th>
+                            <th>Klasse</th>
+                            <th>Klubb</th>
+                            <th>Tid</th>
+                            <th>Manglende poster</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            {% set result = row.result %}
+                            {% set athlete = row.athlete %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{% if athlete %}{{ athlete.start_number or "" }}{% endif %}</td>
+                                <td>
+                                    {% if athlete %}
+                                        {{ athlete.first_name or "" }} {{ athlete.last_name or "" }}
+                                    {% endif %}
+                                </td>
+                                <td>{% if athlete %}{{ athlete.gender or "" }}{% endif %}</td>
+                                <td>{% if athlete %}{{ athlete.class_name or "" }}{% endif %}</td>
+                                <td>{% if athlete %}{{ athlete.club or "" }}{% endif %}</td>
+                                <td>
+                                    {% if result.total_seconds is not none %}
+                                        {% set h = result.total_seconds // 3600 %}
+                                        {% set m = (result.total_seconds % 3600) // 60 %}
+                                        {% set s = result.total_seconds % 60 %}
+                                        {{ "%d:%02d:%02d"|format(h, m, s) }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ result.missing_controls }}</td>
+                                <td>{{ result.status }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen resultater ennå.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

@@ -576,3 +576,67 @@ def manual_scan_submit(
         url=f"/admin/scans/manual?race_id={race_id}&message={message}",
         status_code=303,
     )
+
+
+@router.get("/admin/results")
+def results_page(
+    request: Request,
+    race_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    from backend.app.models.result import Result
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    rows = []
+
+    if selected_race is not None:
+        results = (
+            db.query(Result)
+            .filter(Result.race_id == selected_race.id)
+            .order_by(Result.total_seconds.asc())
+            .all()
+        )
+
+        athlete_ids = [result.athlete_id for result in results]
+
+        athletes_by_id = {}
+
+        if athlete_ids:
+            athletes = (
+                db.query(Athlete)
+                .filter(Athlete.id.in_(athlete_ids))
+                .all()
+            )
+            athletes_by_id = {athlete.id: athlete for athlete in athletes}
+
+        for result in results:
+            athlete = athletes_by_id.get(result.athlete_id)
+
+            rows.append(
+                {
+                    "result": result,
+                    "athlete": athlete,
+                }
+            )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="results.html",
+        context={
+            "races": races,
+            "selected_race": selected_race,
+            "rows": rows,
+        },
+    )

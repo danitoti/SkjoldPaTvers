@@ -8,6 +8,8 @@ from backend.app.models.event_log import EventLog
 from backend.app.models.raw_scan import RawScan
 from backend.app.models.scan_punch import ScanPunch
 from backend.app.parser.emit_parser import parse_emit_scan
+from backend.app.services.result_service import rebuild_result_for_scan
+from backend.app.utils.time_utils import server_now
 from backend.app.services.emit_validation_service import (
     validate_emit_scan_against_controls,
 )
@@ -85,11 +87,14 @@ def store_emit_scan(
             .update({"is_active": False})
         )
 
+    received_at = server_now()
+
     raw_scan = RawScan(
         race_id=race_id,
         athlete_id=athlete.id if athlete else None,
         chip_number=parsed.chip_number,
         raw_text=raw_text,
+        received_at=received_at,
         emit_total_time_raw=parsed.emit_total_time_raw,
         emit_total_seconds=parsed.emit_total_seconds,
         scanner_time_raw=parsed.scanner_time_raw,
@@ -155,6 +160,9 @@ def store_emit_scan(
             related_athlete_id=athlete.id if athlete else None,
         )
     )
+
+    if athlete is not None:
+        rebuild_result_for_scan(db=db, raw_scan=raw_scan)
 
     db.commit()
     db.refresh(raw_scan)
