@@ -168,3 +168,47 @@ th {
         padding: 20px;
     }
 }
+
+.inline-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.inline-form input {
+    flex: 1;
+}
+
+.inline-form button {
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+.button-link {
+    background: #4d5a51;
+    color: white;
+    border-radius: 6px;
+    padding: 10px 16px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.button-link:hover {
+    background: #333d36;
+}
+
+.table-form {
+    display: contents;
+}
+
+.table-form input {
+    min-width: 120px;
+}
+
+.table-form button {
+    margin-top: 0;
+}
+
+.muted {
+    color: var(--muted);
+}

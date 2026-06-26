@@ -3,6 +3,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.database.dependencies import get_db
@@ -24,7 +26,23 @@ def _parse_datetime(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value)
 
 
-def _redirect_to_admin(race_id: int | None = None, message: str | None = None):
+def _clean(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    value = value.strip()
+
+    if value == "":
+        return None
+
+    return value
+
+
+def _redirect_to_admin(
+    race_id: int | None = None,
+    message: str | None = None,
+    athlete_search: str | None = None,
+):
     url = "/admin"
 
     query_parts = []
@@ -34,6 +52,9 @@ def _redirect_to_admin(race_id: int | None = None, message: str | None = None):
 
     if message:
         query_parts.append(f"message={message}")
+
+    if athlete_search:
+        query_parts.append(f"athlete_search={athlete_search}")
 
     if query_parts:
         url += "?" + "&".join(query_parts)
@@ -46,6 +67,7 @@ def admin_dashboard(
     request: Request,
     race_id: int | None = None,
     message: str | None = None,
+    athlete_search: str | None = None,
     db: Session = Depends(get_db),
 ):
     races = (
@@ -62,6 +84,7 @@ def admin_dashboard(
         selected_race = races[0]
 
     controls = []
+    athletes = []
     athletes_count = 0
     events_query = db.query(EventLog)
 
@@ -77,6 +100,34 @@ def admin_dashboard(
             db.query(Athlete)
             .filter(Athlete.race_id == selected_race.id)
             .count()
+        )
+
+        athletes_query = (
+            db.query(Athlete)
+            .filter(Athlete.race_id == selected_race.id)
+        )
+
+        search_value = _clean(athlete_search)
+
+        if search_value:
+            filters = [
+                Athlete.chip_number.ilike(f"%{search_value}%"),
+                Athlete.first_name.ilike(f"%{search_value}%"),
+                Athlete.last_name.ilike(f"%{search_value}%"),
+                Athlete.club.ilike(f"%{search_value}%"),
+                Athlete.class_name.ilike(f"%{search_value}%"),
+            ]
+
+            if search_value.isdigit():
+                filters.append(Athlete.start_number == int(search_value))
+
+            athletes_query = athletes_query.filter(or_(*filters))
+
+        athletes = (
+            athletes_query
+            .order_by(Athlete.start_number.asc())
+            .limit(100)
+            .all()
         )
 
         events_query = events_query.filter(EventLog.race_id == selected_race.id)
@@ -95,7 +146,9 @@ def admin_dashboard(
             "races": races,
             "selected_race": selected_race,
             "controls": controls,
+            "athletes": athletes,
             "athletes_count": athletes_count,
+            "athlete_search": athlete_search or "",
             "events": events,
             "message": message,
         },
@@ -170,12 +223,21 @@ def create_control(
         race_id=race_id,
         sort_order=sort_order,
         name=name.strip(),
-        emit_code=emit_code.strip() if emit_code else None,
+        emit_code=_clean(emit_code),
         is_finish=is_finish == "on",
     )
 
     db.add(control)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _redirect_to_admin(
+            race_id,
+            "Kunne ikke lagre post. Sjekk duplikat rekkefølge eller EMIT-kode.",
+        )
+
     db.refresh(control)
 
     db.add(
@@ -257,3 +319,45 @@ async def import_eqtiming_admin(
     )
 
     return _redirect_to_admin(race_id, message)
+
+
+@router.post("/admin/athletes/{athlete_id}/chip")
+def update_athlete_chip(
+    athlete_id: int,
+    race_id: int = Form(...),
+    chip_number: str | None = Form(default=None),
+    athlete_search: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    athlete = db.query(Athlete).filter(Athlete.id == athlete_id).first()
+
+    if athlete is None:
+        return _redirect_to_admin(race_id, "Løper finnes ikke", athlete_search)
+
+    old_chip = athlete.chip_number
+    athlete.chip_number = _clean(chip_number)
+
+    db.add(
+        EventLog(
+            race_id=race_id,
+            severity="INFO",
+            source="admin.athletes",
+            message=(
+                f"Endret brikkenummer for startnr {athlete.start_number}: "
+                f"{old_chip or '-'} -> {athlete.chip_number or '-'}"
+            ),
+            related_athlete_id=athlete.id,
+        )
+    )
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _redirect_to_admin(
+            race_id,
+            "Kunne ikke lagre brikkenummer. Det er sannsynligvis allerede i bruk.",
+            athlete_search,
+        )
+
+    return _redirect_to_admin(race_id, "Brikkenummer oppdatert", athlete_search)

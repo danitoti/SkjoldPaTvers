@@ -160,6 +160,62 @@
                     <p>Ingen poster lagt inn ennå.</p>
                 {% endif %}
             </section>
+
+            <section class="card">
+                <h2>Løpere og brikker</h2>
+
+                <form method="get" action="/admin" class="search-form">
+                    <input type="hidden" name="race_id" value="{{ selected_race.id }}">
+
+                    <label>Søk etter startnummer, navn, klubb, klasse eller brikkenummer</label>
+                    <div class="inline-form">
+                        <input type="text" name="athlete_search" value="{{ athlete_search }}" placeholder="Søk...">
+                        <button type="submit">Søk</button>
+                        <a class="button-link" href="/admin?race_id={{ selected_race.id }}">Nullstill</a>
+                    </div>
+                </form>
+
+                {% if athletes %}
+                    <p class="muted">Viser maks 100 løpere. Bruk søk ved stor liste.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Startnr</th>
+                                <th>Navn</th>
+                                <th>Kjønn</th>
+                                <th>Klasse</th>
+                                <th>Klubb</th>
+                                <th>Brikkenummer</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for athlete in athletes %}
+                                <tr>
+                                    <td>{{ athlete.start_number or "" }}</td>
+                                    <td>{{ athlete.first_name or "" }} {{ athlete.last_name or "" }}</td>
+                                    <td>{{ athlete.gender or "" }}</td>
+                                    <td>{{ athlete.class_name or "" }}</td>
+                                    <td>{{ athlete.club or "" }}</td>
+                                    <td>
+                                        <form method="post" action="/admin/athletes/{{ athlete.id }}/chip" class="table-form">
+                                            <input type="hidden" name="race_id" value="{{ selected_race.id }}">
+                                            <input type="hidden" name="athlete_search" value="{{ athlete_search }}">
+                                            <input type="text" name="chip_number" value="{{ athlete.chip_number or "" }}">
+                                    </td>
+                                    <td class="right">
+                                            <button type="submit">Lagre</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>Ingen løpere å vise.</p>
+                {% endif %}
+            </section>
         {% endif %}
 
         <section class="card">
