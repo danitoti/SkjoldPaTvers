@@ -1,7 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
+.pytest_cache/
 
 # Virtual environment
 .venv/
@@ -12,27 +12,21 @@ venv/
 *.sqlite
 *.sqlite3
 
-# VS Code
-.vscode/
-
-# JetBrains
-.idea/
-
-# macOS
-.DS_Store
-
-# Linux
-*~
-
-# Log files
+# Logs
 *.log
 
-# Data
-data/database/*
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+*~
+
+# Runtime data
 data/imports/*
 data/exports/*
+data/database/*
 
-# Keep folder structure
-!data/database/.gitkeep
+# Keep folders
 !data/imports/.gitkeep
 !data/exports/.gitkeep
+!data/database/.gitkeep
