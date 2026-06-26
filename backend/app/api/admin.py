@@ -468,3 +468,111 @@ def emit_test_parse(
             "error": error,
         },
     )
+
+
+@router.get("/admin/scans/manual")
+def manual_scan_page(
+    request: Request,
+    race_id: int | None = None,
+    message: str | None = None,
+    db: Session = Depends(get_db),
+):
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    raw_scans = []
+    athletes_by_id = {}
+
+    if selected_race is not None:
+        from backend.app.models.raw_scan import RawScan
+
+        raw_scans = (
+            db.query(RawScan)
+            .filter(RawScan.race_id == selected_race.id)
+            .order_by(RawScan.received_at.desc())
+            .limit(25)
+            .all()
+        )
+
+        athlete_ids = [
+            scan.athlete_id
+            for scan in raw_scans
+            if scan.athlete_id is not None
+        ]
+
+        if athlete_ids:
+            athletes = (
+                db.query(Athlete)
+                .filter(Athlete.id.in_(athlete_ids))
+                .all()
+            )
+            athletes_by_id = {athlete.id: athlete for athlete in athletes}
+
+    return templates.TemplateResponse(
+        request=request,
+        name="manual_scan.html",
+        context={
+            "races": races,
+            "selected_race": selected_race,
+            "raw_scans": raw_scans,
+            "athletes_by_id": athletes_by_id,
+            "message": message,
+        },
+    )
+
+
+@router.post("/admin/scans/manual")
+def manual_scan_submit(
+    race_id: int = Form(...),
+    raw_text: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    from backend.app.services.scan_service import store_emit_scan
+
+    try:
+        summary = store_emit_scan(
+            db=db,
+            race_id=race_id,
+            raw_text=raw_text,
+        )
+    except Exception as exc:
+        db.rollback()
+
+        db.add(
+            EventLog(
+                race_id=race_id,
+                severity="ERROR",
+                source="scan.manual",
+                message=f"Kunne ikke lagre skanning: {exc}",
+            )
+        )
+        db.commit()
+
+        return RedirectResponse(
+            url=f"/admin/scans/manual?race_id={race_id}&message=Skanning feilet",
+            status_code=303,
+        )
+
+    if summary.parse_status == "ok":
+        message = f"Skanning lagret: brikke {summary.chip_number}"
+    elif summary.parse_status == "unknown_chip":
+        message = f"Skanning lagret, men brikken er ukjent: {summary.chip_number}"
+    elif summary.parse_status == "warning":
+        message = f"Skanning lagret med {summary.warning_count} advarsel/advarsler"
+    else:
+        message = "Skanning lagret med feil"
+
+    return RedirectResponse(
+        url=f"/admin/scans/manual?race_id={race_id}&message={message}",
+        status_code=303,
+    )

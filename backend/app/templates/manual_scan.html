@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Manuell skanning</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Manuell skanning</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <section class="card">
+            <h2>Lagre EMIT-skanning</h2>
+
+            <form method="get" action="/admin/scans/manual">
+                <label>Velg løp</label>
+                <select name="race_id" onchange="this.form.submit()">
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            {% if selected_race %}
+                <form method="post" action="/admin/scans/manual">
+                    <input type="hidden" name="race_id" value="{{ selected_race.id }}">
+
+                    <label>Lim inn tekst fra EMIT-skanner</label>
+                    <textarea name="raw_text" rows="18" spellcheck="false" required></textarea>
+
+                    <button type="submit">Lagre skanning</button>
+                </form>
+            {% else %}
+                <p>Opprett et løp før du lagrer skanninger.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Siste skanninger</h2>
+
+            {% if raw_scans %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mottatt</th>
+                            <th>Brikke</th>
+                            <th>Løper</th>
+                            <th>Status</th>
+                            <th>EMIT total</th>
+                            <th>Skannertid</th>
+                            <th>Mål → skanner</th>
+                            <th>Aktiv</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scan in raw_scans %}
+                            {% set athlete = athletes_by_id.get(scan.athlete_id) %}
+                            <tr class="{% if scan.parse_status != 'ok' %}ignored-row{% endif %}">
+                                <td>{{ scan.received_at }}</td>
+                                <td>{{ scan.chip_number or "" }}</td>
+                                <td>
+                                    {% if athlete %}
+                                        #{{ athlete.start_number }} {{ athlete.first_name or "" }} {{ athlete.last_name or "" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ scan.parse_status }}</td>
+                                <td>{{ scan.emit_total_time_raw or "" }}</td>
+                                <td>{{ scan.scanner_time_raw or "" }}</td>
+                                <td>{{ scan.finish_to_scan_time_raw or "" }}</td>
+                                <td>{% if scan.is_active %}Ja{% else %}Nei{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen skanninger lagret ennå.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
