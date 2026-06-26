@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - EMIT-test</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>EMIT parser-test</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Test EMIT-streng</h2>
+
+            <form method="post" action="/admin/emit-test">
+                <label>Lim inn tekst fra EMIT-skanner</label>
+                <textarea name="raw_text" rows="18" spellcheck="false" required>{{ raw_text }}</textarea>
+
+                <button type="submit">Parse tekst</button>
+            </form>
+        </section>
+
+        {% if error %}
+            <section class="card error-card">
+                <h2>Feil</h2>
+                <p>{{ error }}</p>
+            </section>
+        {% endif %}
+
+        {% if parsed %}
+            <section class="grid">
+                <div class="card">
+                    <h2>Hoveddata</h2>
+
+                    <table>
+                        <tbody>
+                            <tr>
+                                <th>Antall linjer</th>
+                                <td>{{ parsed.line_count }}</td>
+                            </tr>
+                            <tr>
+                                <th>Brikkenummer</th>
+                                <td>{{ parsed.chip_number or "" }}</td>
+                            </tr>
+                            <tr>
+                                <th>EMIT total</th>
+                                <td>{{ parsed.emit_total_time_raw or "" }}{% if parsed.emit_total_seconds is not none %} ({{ parsed.emit_total_seconds }} sek){% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th>Tid mål → skanner</th>
+                                <td>{{ parsed.finish_to_scan_time_raw or "" }}{% if parsed.finish_to_scan_seconds is not none %} ({{ parsed.finish_to_scan_seconds }} sek){% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th>Skannertid</th>
+                                <td>{{ parsed.scanner_time_raw or "" }}{% if parsed.scanner_time_seconds is not none %} ({{ parsed.scanner_time_seconds }} sek){% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th>Antall stemplinger</th>
+                                <td>{{ parsed.punches|length }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>Advarsler</h2>
+
+                    {% if parsed.warnings %}
+                        <ul>
+                            {% for warning in parsed.warnings %}
+                                <li>{{ warning }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>Ingen advarsler.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Stemplinger</h2>
+
+                {% if parsed.punches %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sekvens</th>
+                                <th>Strekktid</th>
+                                <th>Strekktid sek</th>
+                                <th>Akkumulert</th>
+                                <th>Akkumulert sek</th>
+                                <th>EMIT-kode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for punch in parsed.punches %}
+                                <tr>
+                                    <td>{{ punch.sequence_code }}</td>
+                                    <td>{{ punch.split_time_raw }}</td>
+                                    <td>{{ punch.split_seconds }}</td>
+                                    <td>{{ punch.accumulated_time_raw }}</td>
+                                    <td>{{ punch.accumulated_seconds }}</td>
+                                    <td>{{ punch.emit_code }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>Ingen stemplinger funnet.</p>
+                {% endif %}
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

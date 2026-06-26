@@ -361,3 +361,42 @@ def update_athlete_chip(
         )
 
     return _redirect_to_admin(race_id, "Brikkenummer oppdatert", athlete_search)
+
+
+@router.get("/admin/emit-test")
+def emit_test_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="emit_test.html",
+        context={
+            "raw_text": "",
+            "parsed": None,
+            "error": None,
+        },
+    )
+
+
+@router.post("/admin/emit-test")
+def emit_test_parse(
+    request: Request,
+    raw_text: str = Form(...),
+):
+    from backend.app.parser.emit_parser import parse_emit_scan
+
+    parsed = None
+    error = None
+
+    try:
+        parsed = parse_emit_scan(raw_text)
+    except Exception as exc:
+        error = str(exc)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="emit_test.html",
+        context={
+            "raw_text": raw_text,
+            "parsed": parsed,
+            "error": error,
+        },
+    )

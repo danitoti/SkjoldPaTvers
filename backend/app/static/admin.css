@@ -212,3 +212,17 @@ th {
 .muted {
     color: var(--muted);
 }
+
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 15px;
+    font-family: monospace;
+    resize: vertical;
+}
+
+.error-card {
+    border-left: 6px solid var(--danger);
+}
