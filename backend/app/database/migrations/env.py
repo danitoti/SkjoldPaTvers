@@ -14,6 +14,8 @@ from backend.app.models.athlete import Athlete  # noqa: F401
 from backend.app.models.control import Control  # noqa: F401
 from backend.app.models.raw_scan import RawScan  # noqa: F401
 from backend.app.models.scan_punch import ScanPunch  # noqa: F401
+from backend.app.models.result import Result  # noqa: F401
+from backend.app.models.result_split import ResultSplit  # noqa: F401
 
 
 config = context.config
