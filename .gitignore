@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Log files
+*.log
+
+# Data
+data/database/*
+data/imports/*
+data/exports/*
+
+# Keep folder structure
+!data/database/.gitkeep
+!data/imports/.gitkeep
+!data/exports/.gitkeep
