@@ -151,6 +151,7 @@ def admin_dashboard(
             "athlete_search": athlete_search or "",
             "events": events,
             "message": message,
+            "reader_status": get_rs232_reader_status(),
         },
     )
 
@@ -917,6 +918,7 @@ def rs232_page(
     db: Session = Depends(get_db),
 ):
     from backend.app.models.rs232_settings import Rs232Settings
+    from backend.app.rs232.reader_worker import get_rs232_reader_status
     from backend.app.rs232.serial_ports import list_serial_ports
 
     ports = list_serial_ports()
@@ -1265,5 +1267,109 @@ def rs232_simulate_submit(
 
     return RedirectResponse(
         url=f"/admin/rs232/simulate?message={message}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/rs232/start")
+def start_rs232_reader_admin(
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    from backend.app.models.rs232_settings import Rs232Settings
+    from backend.app.rs232.reader_worker import start_rs232_reader
+
+    settings = (
+        db.query(Rs232Settings)
+        .filter(Rs232Settings.id == 1)
+        .first()
+    )
+
+    if settings is None:
+        return RedirectResponse(
+            url="/admin/rs232?message=RS-232-oppsett mangler",
+            status_code=303,
+        )
+
+    if not settings.selected_race_id:
+        return RedirectResponse(
+            url="/admin/rs232?message=Velg løp før start",
+            status_code=303,
+        )
+
+    if not settings.port:
+        return RedirectResponse(
+            url="/admin/rs232?message=Velg serieport før start",
+            status_code=303,
+        )
+
+    race = db.query(Race).filter(Race.id == settings.selected_race_id).first()
+
+    if race is None:
+        return RedirectResponse(
+            url="/admin/rs232?message=Valgt løp finnes ikke",
+            status_code=303,
+        )
+
+    ok, message_text = start_rs232_reader(
+        port=settings.port,
+        baudrate=settings.baudrate,
+        timeout=settings.timeout_seconds or 1.0,
+        race_id=race.id,
+    )
+
+    db.add(
+        EventLog(
+            race_id=race.id,
+            severity="INFO" if ok else "WARNING",
+            source="admin.rs232",
+            message=message_text,
+        )
+    )
+    db.commit()
+
+    message = quote(message_text)
+
+    return RedirectResponse(
+        url=f"/admin/rs232?message={message}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/rs232/stop")
+def stop_rs232_reader_admin(
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    from backend.app.models.rs232_settings import Rs232Settings
+    from backend.app.rs232.reader_worker import stop_rs232_reader
+
+    settings = (
+        db.query(Rs232Settings)
+        .filter(Rs232Settings.id == 1)
+        .first()
+    )
+
+    race_id = settings.selected_race_id if settings else None
+
+    ok, message_text = stop_rs232_reader()
+
+    if race_id is not None:
+        db.add(
+            EventLog(
+                race_id=race_id,
+                severity="INFO" if ok else "WARNING",
+                source="admin.rs232",
+                message=message_text,
+            )
+        )
+        db.commit()
+
+    message = quote(message_text)
+
+    return RedirectResponse(
+        url=f"/admin/rs232?message={message}",
         status_code=303,
     )

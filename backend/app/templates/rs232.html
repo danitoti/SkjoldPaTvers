@@ -111,6 +111,79 @@
         </section>
 
         <section class="card">
+            <h2>Kontinuerlig lesing</h2>
+
+            {% if reader_status and reader_status.is_running %}
+                <p class="message">RS-232-lesing kjører.</p>
+
+                <form method="post" action="/admin/rs232/stop">
+                    <button type="submit">Stopp RS-232-lesing</button>
+                </form>
+            {% else %}
+                <p>RS-232-lesing kjører ikke.</p>
+
+                {% if settings and settings.selected_race_id and settings.port %}
+                    <form method="post" action="/admin/rs232/start">
+                        <button type="submit">Start kontinuerlig RS-232-lesing</button>
+                    </form>
+                {% else %}
+                    <p class="muted">
+                        Velg løp og serieport før du starter lesing.
+                    </p>
+                {% endif %}
+            {% endif %}
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Status</th>
+                        <td>{{ "Kjører" if reader_status and reader_status.is_running else "Stoppet" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Port</th>
+                        <td>{{ reader_status.port if reader_status and reader_status.port else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Baudrate</th>
+                        <td>{{ reader_status.baudrate if reader_status and reader_status.baudrate else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Startet</th>
+                        <td>{{ reader_status.started_at if reader_status and reader_status.started_at else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Sist mottatt</th>
+                        <td>{{ reader_status.last_frame_at if reader_status and reader_status.last_frame_at else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Sist lagret</th>
+                        <td>{{ reader_status.last_saved_at if reader_status and reader_status.last_saved_at else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Skanninger mottatt</th>
+                        <td>{{ reader_status.frames_received if reader_status else 0 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Skanninger lagret</th>
+                        <td>{{ reader_status.scans_saved if reader_status else 0 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Lagringsfeil</th>
+                        <td>{{ reader_status.save_errors if reader_status else 0 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Siste melding</th>
+                        <td>{{ reader_status.last_message if reader_status and reader_status.last_message else "-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Siste feil</th>
+                        <td>{{ reader_status.last_error if reader_status and reader_status.last_error else "-" }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card">
             <h2>Simulator</h2>
 
             <p class="muted">
