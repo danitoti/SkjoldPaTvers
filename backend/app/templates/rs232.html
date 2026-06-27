@@ -24,12 +24,94 @@
     </header>
 
     <main>
-        <section class="card">
-            <h2>Serieporter</h2>
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
 
-            <p class="muted">
-                Denne siden viser tilgjengelige serieporter. Senere kobler vi denne siden til kontinuerlig lesing fra EMIT-skanneren.
-            </p>
+        <section class="card">
+            <h2>RS-232-oppsett</h2>
+
+            <form method="post" action="/admin/rs232/settings">
+                <label>Løp som skanneren skal knyttes til</label>
+                <select name="race_id">
+                    <option value="">Ikke valgt</option>
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if settings and settings.selected_race_id == race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label>Velg serieport</label>
+                <select name="port_select">
+                    <option value="">Ikke valgt</option>
+                    {% for port in ports %}
+                        <option value="{{ port.device }}"
+                            {% if settings and settings.port == port.device %}selected{% endif %}>
+                            {{ port.device }} - {{ port.description }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label>Manuell port</label>
+                <input
+                    type="text"
+                    name="port_manual"
+                    placeholder="/dev/ttyUSB0"
+                    value="{% if settings and settings.port %}{{ settings.port }}{% endif %}"
+                >
+                <p class="muted">
+                    På Linux heter USB/RS-232-adapteren ofte
+                    <code>/dev/ttyUSB0</code> eller <code>/dev/ttyACM0</code>.
+                    Hvis du skriver inn manuell port, brukes den foran valget i nedtrekkslisten.
+                </p>
+
+                <label>Baudrate</label>
+                <input
+                    type="number"
+                    name="baudrate"
+                    value="{% if settings %}{{ settings.baudrate }}{% else %}9600{% endif %}"
+                    required
+                >
+
+                <button type="submit">Lagre RS-232-oppsett</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Lagret oppsett</h2>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Løp</th>
+                        <td>
+                            {% if settings and settings.selected_race_id %}
+                                ID {{ settings.selected_race_id }}
+                            {% else %}
+                                Ikke valgt
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Port</th>
+                        <td>{{ settings.port if settings and settings.port else "Ikke valgt" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Baudrate</th>
+                        <td>{{ settings.baudrate if settings else 9600 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Kontinuerlig lesing</th>
+                        <td>Ikke aktivert ennå</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2>Tilgjengelige serieporter</h2>
 
             {% if ports %}
                 <table>
@@ -53,26 +135,16 @@
             {% else %}
                 <p>Fant ingen serieporter.</p>
                 <p class="muted">
-                    Hvis USB/RS-232-adapteren ikke er koblet til, er dette normalt.
-                    Når adapteren kobles til på Linux vil den ofte hete noe som
-                    <code>/dev/ttyUSB0</code> eller <code>/dev/ttyACM0</code>.
+                    Dette er normalt hvis USB/RS-232-adapteren ikke er koblet til.
                 </p>
             {% endif %}
         </section>
 
         <section class="card">
-            <h2>Status</h2>
+            <h2>Leselogikk</h2>
 
             <table>
                 <tbody>
-                    <tr>
-                        <th>Kontinuerlig lesing</th>
-                        <td>Ikke aktivert ennå</td>
-                    </tr>
-                    <tr>
-                        <th>Frame collector</th>
-                        <td>Klar</td>
-                    </tr>
                     <tr>
                         <th>Oppstartsstøy</th>
                         <td>Ignoreres frem til <code>EMIT timing system</code></td>
@@ -80,6 +152,10 @@
                     <tr>
                         <th>Slutt på skanning</th>
                         <td>Oppdages ved <code>Emit EPT</code></td>
+                    </tr>
+                    <tr>
+                        <th>Lagring</th>
+                        <td>Ikke koblet til automatisk RS-232-lesing ennå</td>
                     </tr>
                 </tbody>
             </table>

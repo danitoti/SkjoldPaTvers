@@ -913,15 +913,119 @@ def match_unknown_scan(
 @router.get("/admin/rs232")
 def rs232_page(
     request: Request,
+    message: str | None = None,
+    db: Session = Depends(get_db),
 ):
+    from backend.app.models.rs232_settings import Rs232Settings
     from backend.app.rs232.serial_ports import list_serial_ports
 
     ports = list_serial_ports()
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    settings = (
+        db.query(Rs232Settings)
+        .filter(Rs232Settings.id == 1)
+        .first()
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="rs232.html",
         context={
             "ports": ports,
+            "races": races,
+            "settings": settings,
+            "message": message,
         },
+    )
+
+
+@router.post("/admin/rs232/settings")
+def save_rs232_settings(
+    race_id: str | None = Form(default=None),
+    port_select: str | None = Form(default=None),
+    port_manual: str | None = Form(default=None),
+    baudrate: str = Form(default="9600"),
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    from backend.app.models.rs232_settings import Rs232Settings
+
+    try:
+        selected_race_id = int(race_id) if race_id and race_id.strip() else None
+    except ValueError:
+        return RedirectResponse(
+            url="/admin/rs232?message=Ugyldig løp",
+            status_code=303,
+        )
+
+    try:
+        baudrate_value = int(baudrate)
+    except ValueError:
+        return RedirectResponse(
+            url="/admin/rs232?message=Ugyldig baudrate",
+            status_code=303,
+        )
+
+    if baudrate_value <= 0:
+        return RedirectResponse(
+            url="/admin/rs232?message=Ugyldig baudrate",
+            status_code=303,
+        )
+
+    if selected_race_id is not None:
+        race = db.query(Race).filter(Race.id == selected_race_id).first()
+
+        if race is None:
+            return RedirectResponse(
+                url="/admin/rs232?message=Løp finnes ikke",
+                status_code=303,
+            )
+    else:
+        race = None
+
+    port = (port_manual or "").strip() or (port_select or "").strip() or None
+
+    settings = (
+        db.query(Rs232Settings)
+        .filter(Rs232Settings.id == 1)
+        .first()
+    )
+
+    if settings is None:
+        settings = Rs232Settings(id=1)
+
+    settings.selected_race_id = selected_race_id
+    settings.port = port
+    settings.baudrate = baudrate_value
+    settings.is_enabled = False
+
+    db.add(settings)
+
+    if race is not None:
+        db.add(
+            EventLog(
+                race_id=race.id,
+                severity="INFO",
+                source="admin.rs232",
+                message=(
+                    f"Oppdaterte RS-232-oppsett: "
+                    f"port={port or '-'}, baudrate={baudrate_value}"
+                ),
+            )
+        )
+
+    db.commit()
+
+    message = quote("RS-232-oppsett lagret")
+
+    return RedirectResponse(
+        url=f"/admin/rs232?message={message}",
+        status_code=303,
     )
