@@ -739,3 +739,189 @@ def rebuild_results_admin(
             f"{summary['skipped']} hoppet over."
         ),
     )
+
+
+@router.get("/admin/scans/unknown")
+def unknown_scans_page(
+    request: Request,
+    race_id: int | None = None,
+    message: str | None = None,
+    db: Session = Depends(get_db),
+):
+    from backend.app.models.raw_scan import RawScan
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    unknown_scans = []
+
+    if selected_race is not None:
+        unknown_scans = (
+            db.query(RawScan)
+            .filter(
+                RawScan.race_id == selected_race.id,
+                RawScan.is_active.is_(True),
+                RawScan.parse_status == "unknown_chip",
+            )
+            .order_by(RawScan.received_at.desc())
+            .all()
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="unknown_scans.html",
+        context={
+            "races": races,
+            "selected_race": selected_race,
+            "unknown_scans": unknown_scans,
+            "message": message,
+        },
+    )
+
+
+@router.post("/admin/scans/unknown/{raw_scan_id}/match")
+def match_unknown_scan(
+    raw_scan_id: int,
+    race_id: int = Form(...),
+    start_number: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    from backend.app.models.raw_scan import RawScan
+    from backend.app.services.result_service import rebuild_result_for_scan
+
+    raw_scan = (
+        db.query(RawScan)
+        .filter(
+            RawScan.id == raw_scan_id,
+            RawScan.race_id == race_id,
+        )
+        .first()
+    )
+
+    if raw_scan is None:
+        return RedirectResponse(
+            url=f"/admin/scans/unknown?race_id={race_id}&message=Skanning finnes ikke",
+            status_code=303,
+        )
+
+    if not raw_scan.chip_number:
+        return RedirectResponse(
+            url=f"/admin/scans/unknown?race_id={race_id}&message=Skanningen mangler brikkenummer",
+            status_code=303,
+        )
+
+    athlete = (
+        db.query(Athlete)
+        .filter(
+            Athlete.race_id == race_id,
+            Athlete.start_number == start_number,
+        )
+        .first()
+    )
+
+    if athlete is None:
+        return RedirectResponse(
+            url=f"/admin/scans/unknown?race_id={race_id}&message=Fant ikke startnummer {start_number}",
+            status_code=303,
+        )
+
+    existing_chip_owner = (
+        db.query(Athlete)
+        .filter(
+            Athlete.race_id == race_id,
+            Athlete.chip_number == raw_scan.chip_number,
+            Athlete.id != athlete.id,
+        )
+        .first()
+    )
+
+    if existing_chip_owner is not None:
+        return RedirectResponse(
+            url=(
+                f"/admin/scans/unknown?race_id={race_id}"
+                f"&message=Brikke {raw_scan.chip_number} er allerede koblet til startnummer {existing_chip_owner.start_number}"
+            ),
+            status_code=303,
+        )
+
+    old_chip = athlete.chip_number
+    athlete.chip_number = raw_scan.chip_number
+    raw_scan.athlete_id = athlete.id
+
+    remaining_warnings = []
+
+    if raw_scan.error_message:
+        for line in raw_scan.error_message.splitlines():
+            if "finnes ikke på løperlisten" not in line:
+                remaining_warnings.append(line)
+
+    raw_scan.error_message = "\n".join(remaining_warnings) if remaining_warnings else None
+    raw_scan.parse_status = "warning" if remaining_warnings else "ok"
+
+    db.add(
+        EventLog(
+            race_id=race_id,
+            severity="INFO",
+            source="admin.unknown_chip",
+            message=(
+                f"Koblet ukjent brikke {raw_scan.chip_number} "
+                f"til startnummer {athlete.start_number}. "
+                f"Tidligere brikke: {old_chip or '-'}"
+            ),
+            related_scan_id=raw_scan.id,
+            related_athlete_id=athlete.id,
+        )
+    )
+
+    rebuild_result_for_scan(
+        db=db,
+        raw_scan=raw_scan,
+    )
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+
+        return RedirectResponse(
+            url=(
+                f"/admin/scans/unknown?race_id={race_id}"
+                f"&message=Kunne ikke koble brikke. Brikkenummeret er sannsynligvis allerede i bruk."
+            ),
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=(
+            f"/admin/scans/unknown?race_id={race_id}"
+            f"&message=Brikke {raw_scan.chip_number} koblet til startnummer {athlete.start_number}"
+        ),
+        status_code=303,
+    )
+
+
+@router.get("/admin/rs232")
+def rs232_page(
+    request: Request,
+):
+    from backend.app.rs232.serial_ports import list_serial_ports
+
+    ports = list_serial_ports()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="rs232.html",
+        context={
+            "ports": ports,
+        },
+    )

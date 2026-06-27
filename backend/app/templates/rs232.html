@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - RS-232</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>RS-232 / EMIT-skanner</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/live">Live</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/scans/unknown">Ukjente brikker</a>
+            <a href="/admin/rs232">RS-232</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Serieporter</h2>
+
+            <p class="muted">
+                Denne siden viser tilgjengelige serieporter. Senere kobler vi denne siden til kontinuerlig lesing fra EMIT-skanneren.
+            </p>
+
+            {% if ports %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Port</th>
+                            <th>Beskrivelse</th>
+                            <th>HWID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for port in ports %}
+                            <tr>
+                                <td><strong>{{ port.device }}</strong></td>
+                                <td>{{ port.description }}</td>
+                                <td>{{ port.hwid }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Fant ingen serieporter.</p>
+                <p class="muted">
+                    Hvis USB/RS-232-adapteren ikke er koblet til, er dette normalt.
+                    Når adapteren kobles til på Linux vil den ofte hete noe som
+                    <code>/dev/ttyUSB0</code> eller <code>/dev/ttyACM0</code>.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Status</h2>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Kontinuerlig lesing</th>
+                        <td>Ikke aktivert ennå</td>
+                    </tr>
+                    <tr>
+                        <th>Frame collector</th>
+                        <td>Klar</td>
+                    </tr>
+                    <tr>
+                        <th>Oppstartsstøy</th>
+                        <td>Ignoreres frem til <code>EMIT timing system</code></td>
+                    </tr>
+                    <tr>
+                        <th>Slutt på skanning</th>
+                        <td>Oppdages ved <code>Emit EPT</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

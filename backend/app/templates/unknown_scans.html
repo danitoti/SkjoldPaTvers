@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Ukjente brikker</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Ukjente brikker</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/live">Live</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/scans/unknown">Ukjente brikker</a>
+            <a href="/admin/rs232">RS-232</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <section class="card">
+            <h2>Velg løp</h2>
+
+            <form method="get" action="/admin/scans/unknown">
+                <select name="race_id" onchange="this.form.submit()">
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Aktive skanninger med ukjent brikke</h2>
+
+            {% if unknown_scans %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mottatt</th>
+                            <th>Brikke</th>
+                            <th>EMIT total</th>
+                            <th>Mål → skanner</th>
+                            <th>Advarsel</th>
+                            <th>Koble til startnummer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scan in unknown_scans %}
+                            <tr class="ignored-row">
+                                <td>{{ scan.received_at }}</td>
+                                <td>{{ scan.chip_number or "" }}</td>
+                                <td>{{ scan.emit_total_time_raw or "" }}</td>
+                                <td>{{ scan.finish_to_scan_time_raw or "" }}</td>
+                                <td>{{ scan.error_message or "" }}</td>
+                                <td>
+                                    <form method="post" action="/admin/scans/unknown/{{ scan.id }}/match" class="inline-form">
+                                        <input type="hidden" name="race_id" value="{{ selected_race.id }}">
+                                        <input type="number" name="start_number" placeholder="Startnr" required>
+                                        <button type="submit">Koble</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen aktive ukjente brikker.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
