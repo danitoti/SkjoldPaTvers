@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Simulert RS-232</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Simulert RS-232 / EMIT-skanner</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/live">Live</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/scans/unknown">Ukjente brikker</a>
+            <a href="/admin/rs232">RS-232</a>
+            <a href="/admin/rs232/simulate">RS-232 simulator</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <section class="card">
+            <h2>Simuler serieport</h2>
+
+            <p class="muted">
+                Denne siden simulerer det som kommer inn fra serieporten.
+                Den bruker samme RS-232-leser som ekte skanner, og lagrer resultatet hvis en komplett EMIT-utskrift blir funnet.
+            </p>
+
+            <form method="post" action="/admin/rs232/simulate">
+                <label>Løp</label>
+                <select name="race_id" required>
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if settings and settings.selected_race_id == race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label>Overstyr skannetidspunkt</label>
+                <input type="datetime-local" name="scan_received_at">
+                <p class="muted">
+                    Brukes ved testing av gamle skanninger. La stå tom for å bruke nåværende servertid.
+                </p>
+
+                <label>Simulert serieport-tekst</label>
+                <textarea name="serial_text" rows="24" spellcheck="false" required>Scanner booting...
+Startup noise
+Ready
+
+   EMIT timing system
+  14:54:26  06.04.2025
+527451  >>>  1:54:03 <<<
+01    18:00    18:00 100
+02    08:02    26:02 111
+03    09:13    35:15 113
+04    10:46    46:01 117
+05    27:56  1:13:57 119
+06    18:05  1:32:02 120
+07    07:46  1:39:48 121
+F     14:15  1:54:03 150
+
+2.10  00:11  1:54:14
+Emit EPT V6.00      </textarea>
+
+                <button type="submit">Kjør simulert RS-232-skanning</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Hva testes her?</h2>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Oppstartsstøy</th>
+                        <td>Linjer før <code>EMIT timing system</code> skal ignoreres.</td>
+                    </tr>
+                    <tr>
+                        <th>Start på skanning</th>
+                        <td>Starter når <code>EMIT timing system</code> oppdages.</td>
+                    </tr>
+                    <tr>
+                        <th>Slutt på skanning</th>
+                        <td>Fullføres når <code>Emit EPT</code> oppdages.</td>
+                    </tr>
+                    <tr>
+                        <th>Lagring</th>
+                        <td>Bruker samme lagringsmotor som manuell og fremtidig ekte RS-232-lesing.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

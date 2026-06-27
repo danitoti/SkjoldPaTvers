@@ -1137,3 +1137,133 @@ def read_one_rs232_scan(
         url=f"/admin/rs232?message={message}",
         status_code=303,
     )
+
+
+@router.get("/admin/rs232/simulate")
+def rs232_simulate_page(
+    request: Request,
+    message: str | None = None,
+    db: Session = Depends(get_db),
+):
+    from backend.app.models.rs232_settings import Rs232Settings
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    settings = (
+        db.query(Rs232Settings)
+        .filter(Rs232Settings.id == 1)
+        .first()
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="rs232_simulate.html",
+        context={
+            "races": races,
+            "settings": settings,
+            "message": message,
+        },
+    )
+
+
+@router.post("/admin/rs232/simulate")
+def rs232_simulate_submit(
+    race_id: int = Form(...),
+    serial_text: str = Form(...),
+    scan_received_at: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    from backend.app.rs232.serial_reader import RS232EmitReader
+    from backend.app.services.scan_service import store_emit_scan
+
+    class FakeSerial:
+        def __init__(self, text: str):
+            self.lines = [
+                f"{line}\n".encode("utf-8")
+                for line in text.splitlines()
+            ]
+            self.index = 0
+
+        def readline(self):
+            if self.index >= len(self.lines):
+                return b""
+
+            value = self.lines[self.index]
+            self.index += 1
+            return value
+
+        def close(self):
+            pass
+
+    race = db.query(Race).filter(Race.id == race_id).first()
+
+    if race is None:
+        return RedirectResponse(
+            url="/admin/rs232/simulate?message=Løp finnes ikke",
+            status_code=303,
+        )
+
+    fake_serial = FakeSerial(serial_text)
+
+    reader = RS232EmitReader(
+        port="SIMULERT",
+        serial_connection=fake_serial,
+    )
+
+    raw_text = reader.read_one_frame()
+
+    if raw_text is None:
+        message = quote(
+            "Fant ingen komplett EMIT-skanning. "
+            "Teksten må inneholde startlinjen 'EMIT timing system' "
+            "og sluttlinjen 'Emit EPT'."
+        )
+
+        return RedirectResponse(
+            url=f"/admin/rs232/simulate?message={message}",
+            status_code=303,
+        )
+
+    try:
+        summary = store_emit_scan(
+            db=db,
+            race_id=race.id,
+            raw_text=raw_text,
+            received_at_override=_parse_datetime(scan_received_at),
+        )
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+
+        message = quote(f"Klarte ikke å lagre simulert skanning: {exc}")
+
+        return RedirectResponse(
+            url=f"/admin/rs232/simulate?message={message}",
+            status_code=303,
+        )
+
+    if summary.athlete_name:
+        message_text = (
+            f"Simulert RS-232-skanning lagret for brikke "
+            f"{summary.chip_number} ({summary.athlete_name})"
+        )
+    else:
+        message_text = (
+            f"Simulert RS-232-skanning lagret for brikke "
+            f"{summary.chip_number}. Brikken er ikke koblet til løper."
+        )
+
+    message = quote(message_text)
+
+    return RedirectResponse(
+        url=f"/admin/rs232/simulate?message={message}",
+        status_code=303,
+    )
