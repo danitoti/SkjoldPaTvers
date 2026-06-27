@@ -83,6 +83,12 @@
 
                     <hr>
 
+                    <p>
+                        <a class="button-link" href="/admin/export/results/{{ selected_race.id }}">
+                            Eksporter resultater med strekktider til CSV
+                        </a>
+                    </p>
+
                     <h3>Beregn resultater på nytt</h3>
                     <form method="post" action="/admin/races/{{ selected_race.id }}/rebuild-results">
                         <button type="submit">Beregn alle aktive skanninger på nytt</button>

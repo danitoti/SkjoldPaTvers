@@ -151,7 +151,6 @@ def admin_dashboard(
             "athlete_search": athlete_search or "",
             "events": events,
             "message": message,
-            "reader_status": get_rs232_reader_status(),
         },
     )
 
@@ -943,6 +942,7 @@ def rs232_page(
             "races": races,
             "settings": settings,
             "message": message,
+            "reader_status": get_rs232_reader_status(),
         },
     )
 
@@ -1372,4 +1372,46 @@ def stop_rs232_reader_admin(
     return RedirectResponse(
         url=f"/admin/rs232?message={message}",
         status_code=303,
+    )
+
+
+@router.get("/admin/export/results/{race_id}")
+def export_results_csv(
+    race_id: int,
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    from fastapi.responses import PlainTextResponse, StreamingResponse
+
+    from backend.app.services.export_service import build_results_export_csv
+
+    race = db.query(Race).filter(Race.id == race_id).first()
+
+    if race is None:
+        return PlainTextResponse(
+            "Løp finnes ikke",
+            status_code=404,
+        )
+
+    csv_text = build_results_export_csv(
+        db=db,
+        race_id=race.id,
+    )
+
+    safe_name = (
+        race.name
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
+
+    filename = quote(f"{safe_name}_resultater.csv")
+
+    return StreamingResponse(
+        iter([csv_text]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+        },
     )
