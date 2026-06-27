@@ -4,6 +4,10 @@ from backend.app.parser.emit_parser import parse_emit_scan
 
 LINES = [
     "",
+    "Scanner booting...",
+    "Some startup text",
+    "Version xyz",
+    "Ready",
     "",
     "   EMIT timing system",
     "  14:54:26  06.04.2025",
@@ -35,6 +39,9 @@ def main():
             completed = result
 
     assert completed is not None
+    assert "Scanner booting" not in completed
+    assert "Some startup text" not in completed
+    assert completed.lstrip().startswith("EMIT timing system")
 
     parsed = parse_emit_scan(completed)
 
@@ -44,7 +51,7 @@ def main():
     assert parsed.scanner_time_raw == "1:54:14"
     assert len(parsed.punches) == 8
 
-    print("OK - EMIT frame collector fungerer")
+    print("OK - EMIT frame collector ignorerer oppstartsstøy")
 
 
 if __name__ == "__main__":

@@ -6,13 +6,17 @@ class EmitFrameCollector:
     """
     Collects text lines from an EMIT RS-232 scanner.
 
-    The scanner sends one result as multiple text lines.
-    This collector buffers lines until it sees the EMIT footer line,
-    for example:
+    Startup noise from the scanner is ignored.
 
-        Emit EPT V6.00
+    A real EMIT scan starts when we see a line containing:
 
-    Then it returns the complete raw EMIT text.
+        EMIT timing system
+
+    A scan is complete when we see a footer line starting with:
+
+        Emit EPT
+
+    Then the full raw EMIT text is returned.
     """
 
     buffer: list[str] = field(default_factory=list)
@@ -27,23 +31,24 @@ class EmitFrameCollector:
         Add one line from the serial port.
 
         Returns:
-        - None while the scan is incomplete
+        - None while no complete scan is available
         - raw EMIT text when one full scan is complete
         """
 
         cleaned_line = line.rstrip("\r\n")
+        stripped = cleaned_line.strip()
 
-        # Ignore empty lines before a scan starts.
-        if not self.is_collecting and cleaned_line.strip() == "":
-            return None
-
+        # Ignore everything until a real EMIT printout starts.
         if not self.is_collecting:
+            if "EMIT timing system" not in stripped:
+                return None
+
             self.is_collecting = True
             self.buffer = []
 
         self.buffer.append(cleaned_line)
 
-        if cleaned_line.strip().startswith("Emit EPT"):
+        if stripped.startswith("Emit EPT"):
             raw_text = "\n".join(self.buffer)
             self.reset()
             return raw_text
