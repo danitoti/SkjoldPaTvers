@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="10">
+    <title>Skjold på tvers - Live</title>
+    <link rel="stylesheet" href="/static/live.css">
+</head>
+<body>
+    <header class="live-header">
+        <div>
+            <h1>Skjold på tvers</h1>
+            {% if selected_race %}
+                <p>{{ selected_race.name }}</p>
+            {% else %}
+                <p>Ingen løp valgt</p>
+            {% endif %}
+        </div>
+
+        <div class="live-meta">
+            {% if selected_race and selected_race.start_time %}
+                <div>Start: {{ selected_race.start_time }}</div>
+            {% endif %}
+            <div>Oppdateres automatisk</div>
+        </div>
+    </header>
+
+    <main>
+        {% if races|length > 1 %}
+            <section class="race-select">
+                <form method="get" action="/live">
+                    <label>Velg løp</label>
+                    <select name="race_id" onchange="this.form.submit()">
+                        {% for race in races %}
+                            <option value="{{ race.id }}"
+                                {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                                {{ race.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </section>
+        {% endif %}
+
+        <section class="scoreboards">
+            <div class="board">
+                <h2>Damer</h2>
+
+                {% if women %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Plass</th>
+                                <th>Navn</th>
+                                <th>Klubb</th>
+                                <th>Tid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in women %}
+                                <tr>
+                                    <td class="rank">{{ loop.index }}</td>
+                                    <td>
+                                        <span class="name">{{ row.name }}</span>
+                                        {% if row.missing_controls > 0 %}
+                                            <span class="warning">Mangler {{ row.missing_controls }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ row.club or "" }}</td>
+                                    <td class="time">{{ row.time }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty">Ingen damer i mål ennå.</p>
+                {% endif %}
+            </div>
+
+            <div class="board">
+                <h2>Herrer</h2>
+
+                {% if men %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Plass</th>
+                                <th>Navn</th>
+                                <th>Klubb</th>
+                                <th>Tid</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in men %}
+                                <tr>
+                                    <td class="rank">{{ loop.index }}</td>
+                                    <td>
+                                        <span class="name">{{ row.name }}</span>
+                                        {% if row.missing_controls > 0 %}
+                                            <span class="warning">Mangler {{ row.missing_controls }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ row.club or "" }}</td>
+                                    <td class="time">{{ row.time }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="empty">Ingen herrer i mål ennå.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if unknown %}
+            <section class="board unknown-board">
+                <h2>Ukjent kjønn/klasse</h2>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plass</th>
+                            <th>Navn</th>
+                            <th>Klubb</th>
+                            <th>Tid</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in unknown %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.club or "" }}</td>
+                                <td class="time">{{ row.time }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+    </main>
+
+    <footer>
+        Live resultater - ikke offisiell sluttliste
+    </footer>
+</body>
+</html>
