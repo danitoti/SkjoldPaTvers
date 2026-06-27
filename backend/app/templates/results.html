@@ -52,6 +52,7 @@
                             <th>Tid</th>
                             <th>Manglende poster</th>
                             <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -79,6 +80,9 @@
                                 </td>
                                 <td>{{ result.missing_controls }}</td>
                                 <td>{{ result.status }}</td>
+                                <td class="right">
+                                    <a class="button-link" href="/admin/results/{{ result.id }}">Detaljer</a>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>

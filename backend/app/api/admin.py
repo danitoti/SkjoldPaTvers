@@ -640,3 +640,58 @@ def results_page(
             "rows": rows,
         },
     )
+
+
+@router.get("/admin/results/{result_id}")
+def result_detail_page(
+    request: Request,
+    result_id: int,
+    db: Session = Depends(get_db),
+):
+    from backend.app.models.result import Result
+    from backend.app.models.result_split import ResultSplit
+    from backend.app.models.scan_punch import ScanPunch
+    from backend.app.parser.emit_parser import format_seconds
+
+    result = db.query(Result).filter(Result.id == result_id).first()
+
+    if result is None:
+        return RedirectResponse(
+            url="/admin/results",
+            status_code=303,
+        )
+
+    race = db.query(Race).filter(Race.id == result.race_id).first()
+    athlete = db.query(Athlete).filter(Athlete.id == result.athlete_id).first()
+
+    split_rows = (
+        db.query(ResultSplit, Control, ScanPunch)
+        .join(Control, ResultSplit.control_id == Control.id)
+        .outerjoin(ScanPunch, ResultSplit.source_scan_punch_id == ScanPunch.id)
+        .filter(ResultSplit.result_id == result.id)
+        .order_by(Control.sort_order.asc())
+        .all()
+    )
+
+    rows = []
+
+    for result_split, control, scan_punch in split_rows:
+        rows.append(
+            {
+                "split": result_split,
+                "control": control,
+                "punch": scan_punch,
+            }
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="result_detail.html",
+        context={
+            "race": race,
+            "athlete": athlete,
+            "result": result,
+            "rows": rows,
+            "format_seconds": format_seconds,
+        },
+    )

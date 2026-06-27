@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Resultatdetaljer</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Resultatdetaljer</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            {% if race %}
+                <a href="/admin/results?race_id={{ race.id }}">Resultater</a>
+            {% else %}
+                <a href="/admin/results">Resultater</a>
+            {% endif %}
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>
+                {% if athlete %}
+                    #{{ athlete.start_number }} {{ athlete.first_name or "" }} {{ athlete.last_name or "" }}
+                {% else %}
+                    Ukjent løper
+                {% endif %}
+            </h2>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Løp</th>
+                        <td>{% if race %}{{ race.name }}{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Brikke</th>
+                        <td>{% if athlete %}{{ athlete.chip_number or "" }}{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Kjønn</th>
+                        <td>{% if athlete %}{{ athlete.gender or "" }}{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Klasse</th>
+                        <td>{% if athlete %}{{ athlete.class_name or "" }}{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Klubb</th>
+                        <td>{% if athlete %}{{ athlete.club or "" }}{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Målgang beregnet</th>
+                        <td>{{ result.finish_datetime or "" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Totaltid</th>
+                        <td>{{ format_seconds(result.total_seconds) }}</td>
+                    </tr>
+                    <tr>
+                        <th>Manglende poster</th>
+                        <td>{{ result.missing_controls }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status</th>
+                        <td>{{ result.status }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2>Strekktider</h2>
+
+            {% if rows %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nr</th>
+                            <th>Post</th>
+                            <th>EMIT-kode</th>
+                            <th>Stempling</th>
+                            <th>Tid fra start</th>
+                            <th>Strekktid</th>
+                            <th>Rå akkumulert</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            {% set split = row.split %}
+                            {% set control = row.control %}
+                            {% set punch = row.punch %}
+
+                            <tr class="{% if not split.has_punch %}ignored-row{% endif %}">
+                                <td>{{ control.sort_order }}</td>
+                                <td>{{ control.name }}</td>
+                                <td>{{ control.emit_code or "" }}</td>
+                                <td>{% if split.has_punch %}Ja{% else %}Nei{% endif %}</td>
+                                <td>{{ format_seconds(split.time_from_start_seconds) }}</td>
+                                <td>{{ format_seconds(split.split_seconds) }}</td>
+                                <td>
+                                    {% if punch %}
+                                        {{ punch.accumulated_time_raw or "" }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not split.has_punch %}
+                                        Mangler
+                                    {% elif split.time_from_start_seconds is none %}
+                                        Ikke beregnet
+                                    {% else %}
+                                        OK
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen strekktider funnet.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
