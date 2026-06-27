@@ -86,7 +86,13 @@ def build_results_export_csv(
         .all()
     )
 
-    result_athlete_rows = sorted(result_athlete_rows, key=_result_sort_key)
+    result_athlete_rows = sorted(
+        result_athlete_rows,
+        key=lambda row: (
+            row[1].class_name or "",
+            _result_sort_key(row),
+        ),
+    )
 
     result_ids = [
         result.id
@@ -119,16 +125,20 @@ def build_results_export_csv(
 
     start_time = _format_start_time(race)
 
-    placing = 0
-    previous_total_seconds = None
-    visible_rank = 0
+    placing_by_class: dict[str, int] = {}
+    previous_time_by_class: dict[str, int | None] = {}
+    visible_rank_by_class: dict[str, int] = {}
 
     for result, athlete in result_athlete_rows:
-        placing += 1
+        class_key = athlete.class_name or ""
 
-        if previous_total_seconds != result.total_seconds:
-            visible_rank = placing
-            previous_total_seconds = result.total_seconds
+        placing_by_class[class_key] = placing_by_class.get(class_key, 0) + 1
+
+        if previous_time_by_class.get(class_key) != result.total_seconds:
+            visible_rank_by_class[class_key] = placing_by_class[class_key]
+            previous_time_by_class[class_key] = result.total_seconds
+
+        visible_rank = visible_rank_by_class[class_key]
 
         for control in controls:
             split = splits_by_result_and_control.get(
