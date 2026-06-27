@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -34,6 +35,7 @@ def store_emit_scan(
     db: Session,
     race_id: int,
     raw_text: str,
+    received_at_override: datetime | None = None,
 ) -> StoredScanSummary:
     parsed = parse_emit_scan(raw_text)
 
@@ -87,7 +89,7 @@ def store_emit_scan(
             .update({"is_active": False})
         )
 
-    received_at = server_now()
+    received_at = received_at_override or server_now()
 
     raw_scan = RawScan(
         race_id=race_id,

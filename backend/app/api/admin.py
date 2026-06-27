@@ -548,6 +548,7 @@ def manual_scan_page(
 def manual_scan_submit(
     race_id: int = Form(...),
     raw_text: str = Form(...),
+    scan_received_at: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
     from backend.app.services.scan_service import store_emit_scan
@@ -557,6 +558,7 @@ def manual_scan_submit(
             db=db,
             race_id=race_id,
             raw_text=raw_text,
+            received_at_override=_parse_datetime(scan_received_at),
         )
     except Exception as exc:
         db.rollback()

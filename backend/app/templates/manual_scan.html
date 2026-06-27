@@ -44,6 +44,13 @@
                 <form method="post" action="/admin/scans/manual">
                     <input type="hidden" name="race_id" value="{{ selected_race.id }}">
 
+                    <label>Overstyr skannetidspunkt</label>
+                    <input type="datetime-local" name="scan_received_at">
+                    <p class="muted">
+                        Brukes bare ved testing eller etterregistrering.
+                        La stå tom under vanlig bruk.
+                    </p>
+
                     <label>Lim inn tekst fra EMIT-skanner</label>
                     <textarea name="raw_text" rows="18" spellcheck="false" required></textarea>
 
