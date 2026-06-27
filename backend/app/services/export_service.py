@@ -125,21 +125,7 @@ def build_results_export_csv(
 
     start_time = _format_start_time(race)
 
-    placing_by_class: dict[str, int] = {}
-    previous_time_by_class: dict[str, int | None] = {}
-    visible_rank_by_class: dict[str, int] = {}
-
     for result, athlete in result_athlete_rows:
-        class_key = athlete.class_name or ""
-
-        placing_by_class[class_key] = placing_by_class.get(class_key, 0) + 1
-
-        if previous_time_by_class.get(class_key) != result.total_seconds:
-            visible_rank_by_class[class_key] = placing_by_class[class_key]
-            previous_time_by_class[class_key] = result.total_seconds
-
-        visible_rank = visible_rank_by_class[class_key]
-
         for control in controls:
             split = splits_by_result_and_control.get(
                 (result.id, control.id)
@@ -165,7 +151,7 @@ def build_results_export_csv(
                     control.name,
                     sluttid,
                     "",
-                    visible_rank,
+                    "",
                     "",
                 ]
             )
