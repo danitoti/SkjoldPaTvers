@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="5">
+    <title>Skjold på tvers - Løpsdag</title>
+    <link rel="stylesheet" href="/static/admin.css">
+    <style>
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .status-box {
+            border-radius: 10px;
+            padding: 18px;
+            background: #f6f6f6;
+            border: 1px solid #ddd;
+        }
+
+        .status-box strong {
+            display: block;
+            font-size: 32px;
+        }
+
+        .status-good {
+            border-left: 8px solid #248a3d;
+        }
+
+        .status-warn {
+            border-left: 8px solid #c47f00;
+        }
+
+        .status-bad {
+            border-left: 8px solid #b00020;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .scan-ok td {
+            background: #f7fff8;
+        }
+
+        .scan-warning td {
+            background: #fff8e8;
+        }
+
+        .scan-error td,
+        .scan-unknown td {
+            background: #fff0f2;
+        }
+
+        .muted-small {
+            color: #666;
+            font-size: 13px;
+        }
+
+        @media (max-width: 1000px) {
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Løpsdag / måloperatør</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/admin/race-day">Løpsdag</a>
+            <a href="/admin/preflight">Driftssjekk</a>
+            <a href="/admin/backup">Backup</a>
+            <a href="/live">Live</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/scans/unknown">Ukjente brikker</a>
+            <a href="/admin/rs232">RS-232</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Velg løp</h2>
+
+            <form method="get" action="/admin/race-day">
+                <select name="race_id" onchange="this.form.submit()">
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            {% if selected_race %}
+                <p>
+                    <strong>Valgt løp:</strong> {{ selected_race.name }}
+                    {% if selected_race.start_time %}
+                        — <strong>Start:</strong> {{ selected_race.start_time }}
+                    {% endif %}
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Status nå</h2>
+
+            <div class="status-grid">
+                <div class="status-box {% if reader_status and reader_status.is_running %}status-good{% else %}status-warn{% endif %}">
+                    <strong>{% if reader_status and reader_status.is_running %}Kjører{% else %}Stoppet{% endif %}</strong>
+                    RS-232-leser
+                    <div class="muted-small">
+                        {{ reader_status.port if reader_status and reader_status.port else "-" }}
+                    </div>
+                </div>
+
+                <div class="status-box status-good">
+                    <strong>{{ active_scan_count }}</strong>
+                    Aktive skanninger
+                </div>
+
+                <div class="status-box status-good">
+                    <strong>{{ result_count }}</strong>
+                    Resultater
+                </div>
+
+                <div class="status-box {% if unknown_chip_count > 0 %}status-bad{% else %}status-good{% endif %}">
+                    <strong>{{ unknown_chip_count }}</strong>
+                    Ukjente brikker
+                </div>
+            </div>
+
+            {% if reader_status %}
+                <table>
+                    <tbody>
+                        <tr>
+                            <th>Siste RS-232-melding</th>
+                            <td>{{ reader_status.last_message if reader_status.last_message else "-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Siste RS-232-feil</th>
+                            <td>{{ reader_status.last_error if reader_status.last_error else "-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Sist mottatt fra RS-232</th>
+                            <td>{{ reader_status.last_frame_at if reader_status.last_frame_at else "-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Sist lagret</th>
+                            <td>{{ reader_status.last_saved_at if reader_status.last_saved_at else "-" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Hurtigvalg</h2>
+
+            <div class="quick-actions">
+                <a class="button-link" href="/admin/preflight{% if selected_race %}?race_id={{ selected_race.id }}{% endif %}">
+                    Driftssjekk
+                </a>
+
+                <a class="button-link" href="/admin/rs232">
+                    RS-232 start/stopp
+                </a>
+
+                <a class="button-link" href="/admin/scans/manual">
+                    Manuell skanning
+                </a>
+
+                <a class="button-link" href="/admin/scans/unknown{% if selected_race %}?race_id={{ selected_race.id }}{% endif %}">
+                    Ukjente brikker
+                </a>
+
+                <a class="button-link" href="/admin/results">
+                    Resultater
+                </a>
+
+                <a class="button-link" href="/live{% if selected_race %}?race_id={{ selected_race.id }}{% endif %}" target="_blank">
+                    Åpne livevisning
+                </a>
+
+                <a class="button-link" href="/admin/backup">
+                    Backup
+                </a>
+
+                {% if selected_race %}
+                    <a class="button-link" href="/admin/export/results/{{ selected_race.id }}">
+                        Eksporter til EQ Timing CSV
+                    </a>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Siste skanninger</h2>
+
+            {% if recent_scan_rows %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mottatt</th>
+                            <th>Brikke</th>
+                            <th>Løper</th>
+                            <th>Status</th>
+                            <th>EMIT total</th>
+                            <th>Mål → skanner</th>
+                            <th>Aktiv</th>
+                            <th>Advarsel/feil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in recent_scan_rows %}
+                            {% set scan = row.scan %}
+                            <tr class="
+                                {% if scan.parse_status == 'ok' %}scan-ok
+                                {% elif scan.parse_status == 'unknown_chip' %}scan-unknown
+                                {% elif scan.parse_status == 'warning' %}scan-warning
+                                {% else %}scan-error
+                                {% endif %}
+                            ">
+                                <td>{{ scan.received_at }}</td>
+                                <td><strong>{{ scan.chip_number or "" }}</strong></td>
+                                <td>
+                                    {% if row.athlete %}
+                                        {{ row.athlete.start_number }} -
+                                        {{ row.athlete_name }}
+                                    {% else %}
+                                        <span class="muted">Ikke koblet</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ scan.parse_status }}</td>
+                                <td>{{ scan.emit_total_time_raw or "" }}</td>
+                                <td>{{ scan.finish_to_scan_time_raw or "" }}</td>
+                                <td>{% if scan.is_active %}Ja{% else %}Nei{% endif %}</td>
+                                <td>{{ scan.error_message or "" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen skanninger ennå.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

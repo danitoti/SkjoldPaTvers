@@ -1496,3 +1496,118 @@ def create_backup_admin():
         filename=backup_path.name,
         media_type="application/octet-stream",
     )
+
+
+@router.get("/admin/race-day")
+def race_day_page(
+    request: Request,
+    race_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    from backend.app.models.raw_scan import RawScan
+    from backend.app.models.result import Result
+    from backend.app.rs232.reader_worker import get_rs232_reader_status
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    recent_scan_rows = []
+    result_count = 0
+    unknown_chip_count = 0
+    active_scan_count = 0
+
+    if selected_race is not None:
+        recent_scans = (
+            db.query(RawScan)
+            .filter(RawScan.race_id == selected_race.id)
+            .order_by(RawScan.received_at.desc())
+            .limit(25)
+            .all()
+        )
+
+        athlete_ids = [
+            scan.athlete_id
+            for scan in recent_scans
+            if scan.athlete_id is not None
+        ]
+
+        athletes_by_id = {}
+
+        if athlete_ids:
+            athletes = (
+                db.query(Athlete)
+                .filter(Athlete.id.in_(athlete_ids))
+                .all()
+            )
+
+            athletes_by_id = {
+                athlete.id: athlete
+                for athlete in athletes
+            }
+
+        for scan in recent_scans:
+            athlete = athletes_by_id.get(scan.athlete_id)
+
+            recent_scan_rows.append(
+                {
+                    "scan": scan,
+                    "athlete": athlete,
+                    "athlete_name": (
+                        f"{athlete.first_name or ''} {athlete.last_name or ''}".strip()
+                        if athlete
+                        else ""
+                    ),
+                }
+            )
+
+        result_count = (
+            db.query(Result)
+            .filter(
+                Result.race_id == selected_race.id,
+                Result.total_seconds.isnot(None),
+            )
+            .count()
+        )
+
+        active_scan_count = (
+            db.query(RawScan)
+            .filter(
+                RawScan.race_id == selected_race.id,
+                RawScan.is_active.is_(True),
+            )
+            .count()
+        )
+
+        unknown_chip_count = (
+            db.query(RawScan)
+            .filter(
+                RawScan.race_id == selected_race.id,
+                RawScan.is_active.is_(True),
+                RawScan.parse_status == "unknown_chip",
+            )
+            .count()
+        )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="race_day.html",
+        context={
+            "races": races,
+            "selected_race": selected_race,
+            "reader_status": get_rs232_reader_status(),
+            "recent_scan_rows": recent_scan_rows,
+            "result_count": result_count,
+            "active_scan_count": active_scan_count,
+            "unknown_chip_count": unknown_chip_count,
+        },
+    )
