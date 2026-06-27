@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Driftssjekk</title>
+    <link rel="stylesheet" href="/static/admin.css">
+    <style>
+        .preflight-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .summary-box {
+            border-radius: 10px;
+            padding: 18px;
+            background: #f6f6f6;
+            border: 1px solid #ddd;
+        }
+
+        .summary-box strong {
+            display: block;
+            font-size: 32px;
+        }
+
+        .check-item {
+            border: 1px solid #ddd;
+            border-left-width: 8px;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 14px;
+            background: white;
+        }
+
+        .check-ok {
+            border-left-color: #248a3d;
+        }
+
+        .check-warning {
+            border-left-color: #c47f00;
+        }
+
+        .check-error {
+            border-left-color: #b00020;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-ok {
+            background: #248a3d;
+        }
+
+        .status-warning {
+            background: #c47f00;
+        }
+
+        .status-error {
+            background: #b00020;
+        }
+
+        .ready-box {
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 18px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .ready-ok {
+            background: #e8f6ec;
+            border: 1px solid #248a3d;
+            color: #155724;
+        }
+
+        .ready-error {
+            background: #fdecee;
+            border: 1px solid #b00020;
+            color: #7a0016;
+        }
+
+        .details {
+            margin-top: 10px;
+            color: #444;
+        }
+
+        .details li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Driftssjekk før løp</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/admin/preflight">Driftssjekk</a>
+            <a href="/live">Live</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/scans/unknown">Ukjente brikker</a>
+            <a href="/admin/rs232">RS-232</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Velg løp</h2>
+
+            <form method="get" action="/admin/preflight">
+                <select name="race_id" onchange="this.form.submit()">
+                    {% for race in races %}
+                        <option value="{{ race.id }}"
+                            {% if selected_race and race.id == selected_race.id %}selected{% endif %}>
+                            {{ race.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Status</h2>
+
+            {% if report.is_ready %}
+                <div class="ready-box ready-ok">
+                    Ingen kritiske feil funnet. Systemet ser klart ut, men sjekk advarsler før start.
+                </div>
+            {% else %}
+                <div class="ready-box ready-error">
+                    Kritiske feil må rettes før løpet.
+                </div>
+            {% endif %}
+
+            <div class="preflight-summary">
+                <div class="summary-box">
+                    <strong>{{ report.ok_count }}</strong>
+                    OK
+                </div>
+                <div class="summary-box">
+                    <strong>{{ report.warning_count }}</strong>
+                    Advarsler
+                </div>
+                <div class="summary-box">
+                    <strong>{{ report.error_count }}</strong>
+                    Feil
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Sjekkpunkter</h2>
+
+            {% for item in report.items %}
+                <div class="check-item check-{{ item.status }}">
+                    <h3>
+                        {{ item.title }}
+                        <span class="status-pill status-{{ item.status }}">{{ item.status }}</span>
+                    </h3>
+
+                    <p>{{ item.message }}</p>
+
+                    {% if item.details %}
+                        <ul class="details">
+                            {% for detail in item.details %}
+                                <li>{{ detail }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </section>
+    </main>
+</body>
+</html>

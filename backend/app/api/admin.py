@@ -1415,3 +1415,40 @@ def export_results_csv(
             "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
         },
     )
+
+
+@router.get("/admin/preflight")
+def preflight_page(
+    request: Request,
+    race_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    from backend.app.services.preflight_service import build_preflight_report
+
+    races = (
+        db.query(Race)
+        .order_by(Race.created_at.desc())
+        .all()
+    )
+
+    selected_race = None
+
+    if race_id is not None:
+        selected_race = db.query(Race).filter(Race.id == race_id).first()
+    elif races:
+        selected_race = races[0]
+
+    report = build_preflight_report(
+        db=db,
+        race_id=selected_race.id if selected_race else None,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="preflight.html",
+        context={
+            "races": races,
+            "selected_race": selected_race,
+            "report": report,
+        },
+    )
