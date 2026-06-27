@@ -111,6 +111,25 @@
         </section>
 
         <section class="card">
+            <h2>Les én skanning</h2>
+
+            <p class="muted">
+                Denne knappen prøver å lese én komplett EMIT-utskrift fra valgt serieport.
+                Den brukes for testing og manuell drift. Kontinuerlig bakgrunnslesing kommer senere.
+            </p>
+
+            {% if settings and settings.selected_race_id and settings.port %}
+                <form method="post" action="/admin/rs232/read-once">
+                    <button type="submit">Les én skanning fra valgt port</button>
+                </form>
+            {% else %}
+                <p>
+                    Velg først løp og serieport under RS-232-oppsett.
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="card">
             <h2>Tilgjengelige serieporter</h2>
 
             {% if ports %}

@@ -1029,3 +1029,111 @@ def save_rs232_settings(
         url=f"/admin/rs232?message={message}",
         status_code=303,
     )
+
+
+@router.post("/admin/rs232/read-once")
+def read_one_rs232_scan(
+    db: Session = Depends(get_db),
+):
+    from urllib.parse import quote
+
+    from backend.app.models.rs232_settings import Rs232Settings
+    from backend.app.rs232.serial_reader import RS232EmitReader
+    from backend.app.services.scan_service import store_emit_scan
+
+    settings = (
+        db.query(Rs232Settings)
+        .filter(Rs232Settings.id == 1)
+        .first()
+    )
+
+    if settings is None:
+        return RedirectResponse(
+            url="/admin/rs232?message=RS-232-oppsett mangler",
+            status_code=303,
+        )
+
+    if not settings.selected_race_id:
+        return RedirectResponse(
+            url="/admin/rs232?message=Velg løp før lesing",
+            status_code=303,
+        )
+
+    if not settings.port:
+        return RedirectResponse(
+            url="/admin/rs232?message=Velg serieport før lesing",
+            status_code=303,
+        )
+
+    race = db.query(Race).filter(Race.id == settings.selected_race_id).first()
+
+    if race is None:
+        return RedirectResponse(
+            url="/admin/rs232?message=Valgt løp finnes ikke",
+            status_code=303,
+        )
+
+    try:
+        reader = RS232EmitReader(
+            port=settings.port,
+            baudrate=settings.baudrate,
+            timeout=settings.timeout_seconds or 1.0,
+        )
+
+        raw_text = reader.read_one_frame()
+
+    except Exception as exc:
+        message = quote(f"Kunne ikke lese fra {settings.port}: {exc}")
+
+        return RedirectResponse(
+            url=f"/admin/rs232?message={message}",
+            status_code=303,
+        )
+
+    if raw_text is None:
+        message = quote(
+            "Ingen komplett EMIT-skanning mottatt. "
+            "Dette er normalt hvis skanneren ikke er koblet til eller ikke sender nå."
+        )
+
+        return RedirectResponse(
+            url=f"/admin/rs232?message={message}",
+            status_code=303,
+        )
+
+    try:
+        summary = store_emit_scan(
+            db=db,
+            race_id=race.id,
+            raw_text=raw_text,
+        )
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+
+        message = quote(f"Mottok skanning, men klarte ikke å lagre den: {exc}")
+
+        return RedirectResponse(
+            url=f"/admin/rs232?message={message}",
+            status_code=303,
+        )
+
+    if summary.athlete_name:
+        message_text = (
+            f"Lagret skanning for brikke {summary.chip_number} "
+            f"({summary.athlete_name})"
+        )
+    else:
+        message_text = (
+            f"Lagret skanning for brikke {summary.chip_number}. "
+            "Brikken er ikke koblet til løper."
+        )
+
+    message = quote(message_text)
+
+    return RedirectResponse(
+        url=f"/admin/rs232?message={message}",
+        status_code=303,
+    )
