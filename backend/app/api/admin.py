@@ -1452,3 +1452,47 @@ def preflight_page(
             "report": report,
         },
     )
+
+
+@router.get("/admin/backup")
+def backup_page(
+    request: Request,
+    message: str | None = None,
+):
+    from backend.app.services.backup_service import list_database_backups
+
+    backups = list_database_backups()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="backup.html",
+        context={
+            "message": message,
+            "backups": backups,
+        },
+    )
+
+
+@router.post("/admin/backup/create")
+def create_backup_admin():
+    from urllib.parse import quote
+
+    from fastapi.responses import FileResponse, RedirectResponse
+
+    from backend.app.services.backup_service import create_database_backup
+
+    try:
+        backup_path = create_database_backup()
+    except Exception as exc:
+        message = quote(f"Klarte ikke å lage backup: {exc}")
+
+        return RedirectResponse(
+            url=f"/admin/backup?message={message}",
+            status_code=303,
+        )
+
+    return FileResponse(
+        path=backup_path,
+        filename=backup_path.name,
+        media_type="application/octet-stream",
+    )

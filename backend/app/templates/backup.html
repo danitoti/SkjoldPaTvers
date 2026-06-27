@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="no">
+<head>
+    <meta charset="utf-8">
+    <title>Skjold på tvers - Backup</title>
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    <header>
+        <div>
+            <h1>Skjold på tvers</h1>
+            <p>Database-backup</p>
+        </div>
+        <nav>
+            <a href="/admin">Admin</a>
+            <a href="/admin/preflight">Driftssjekk</a>
+            <a href="/admin/backup">Backup</a>
+            <a href="/live">Live</a>
+            <a href="/admin/results">Resultater</a>
+            <a href="/admin/scans/manual">Skanning</a>
+            <a href="/admin/scans/unknown">Ukjente brikker</a>
+            <a href="/admin/rs232">RS-232</a>
+            <a href="/admin/emit-test">EMIT-test</a>
+            <a href="/docs">API</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if message %}
+            <div class="message">{{ message }}</div>
+        {% endif %}
+
+        <section class="card">
+            <h2>Lag ny backup</h2>
+
+            <p class="muted">
+                Dette lager en konsistent kopi av SQLite-databasen og laster den ned.
+                Backupen lagres også i <code>data/backups</code>.
+            </p>
+
+            <form method="post" action="/admin/backup/create">
+                <button type="submit">Lag og last ned database-backup</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Lagrede backuper</h2>
+
+            {% if backups %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fil</th>
+                            <th>Størrelse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for backup in backups %}
+                            <tr>
+                                <td>{{ backup.name }}</td>
+                                <td>{{ backup.stat().st_size }} byte</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Ingen backuper lagret ennå.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Bruk på løpsdagen</h2>
+
+            <p>Ta backup på disse tidspunktene:</p>
+
+            <ul>
+                <li>etter at løpere er importert</li>
+                <li>etter at poster og starttid er kontrollert</li>
+                <li>rett før første løper forventes i mål</li>
+                <li>etter løpet, før eksport til EQ Timing</li>
+            </ul>
+        </section>
+    </main>
+</body>
+</html>
