@@ -220,3 +220,64 @@ def rebuild_result_for_scan(
     )
 
     return result
+
+
+def rebuild_results_for_race(
+    db: Session,
+    race_id: int,
+) -> dict:
+    """
+    Rebuilds all active results for a race.
+
+    Used when:
+    - race start time changes
+    - course/control setup changes
+    - operator wants to recalculate everything manually
+    """
+
+    active_scans = (
+        db.query(RawScan)
+        .filter(
+            RawScan.race_id == race_id,
+            RawScan.is_active.is_(True),
+        )
+        .order_by(RawScan.received_at.asc())
+        .all()
+    )
+
+    attempted = 0
+    rebuilt = 0
+    skipped = 0
+
+    for raw_scan in active_scans:
+        attempted += 1
+
+        result = rebuild_result_for_scan(
+            db=db,
+            raw_scan=raw_scan,
+        )
+
+        if result is None:
+            skipped += 1
+        else:
+            rebuilt += 1
+
+    db.add(
+        EventLog(
+            race_id=race_id,
+            severity="INFO",
+            source="result",
+            message=(
+                f"Beregnet resultater på nytt: "
+                f"{rebuilt} oppdatert, "
+                f"{skipped} hoppet over, "
+                f"{attempted} aktive skanninger totalt"
+            ),
+        )
+    )
+
+    return {
+        "attempted": attempted,
+        "rebuilt": rebuilt,
+        "skipped": skipped,
+    }

@@ -75,7 +75,14 @@
                     <h3>Endre starttid</h3>
                     <form method="post" action="/admin/races/{{ selected_race.id }}/start-time">
                         <input type="datetime-local" name="start_time" required>
-                        <button type="submit">Lagre starttid</button>
+                        <button type="submit">Lagre starttid og beregn på nytt</button>
+                    </form>
+
+                    <hr>
+
+                    <h3>Beregn resultater på nytt</h3>
+                    <form method="post" action="/admin/races/{{ selected_race.id }}/rebuild-results">
+                        <button type="submit">Beregn alle aktive skanninger på nytt</button>
                     </form>
                 {% else %}
                     <p>Ingen løp opprettet ennå.</p>

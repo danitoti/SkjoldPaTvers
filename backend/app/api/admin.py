@@ -189,6 +189,8 @@ def update_race_start_time(
     start_time: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
+    from backend.app.services.result_service import rebuild_results_for_race
+
     race = db.query(Race).filter(Race.id == race_id).first()
 
     if race is None:
@@ -205,9 +207,20 @@ def update_race_start_time(
         )
     )
 
+    summary = rebuild_results_for_race(
+        db=db,
+        race_id=race.id,
+    )
+
     db.commit()
 
-    return _redirect_to_admin(race.id, "Starttid oppdatert")
+    return _redirect_to_admin(
+        race.id,
+        (
+            f"Starttid oppdatert. "
+            f"{summary['rebuilt']} resultat(er) beregnet på nytt."
+        ),
+    )
 
 
 @router.post("/admin/controls")
@@ -694,4 +707,33 @@ def result_detail_page(
             "rows": rows,
             "format_seconds": format_seconds,
         },
+    )
+
+
+@router.post("/admin/races/{race_id}/rebuild-results")
+def rebuild_results_admin(
+    race_id: int,
+    db: Session = Depends(get_db),
+):
+    from backend.app.services.result_service import rebuild_results_for_race
+
+    race = db.query(Race).filter(Race.id == race_id).first()
+
+    if race is None:
+        return _redirect_to_admin(message="Løp finnes ikke")
+
+    summary = rebuild_results_for_race(
+        db=db,
+        race_id=race.id,
+    )
+
+    db.commit()
+
+    return _redirect_to_admin(
+        race.id,
+        (
+            f"Resultater beregnet på nytt: "
+            f"{summary['rebuilt']} oppdatert, "
+            f"{summary['skipped']} hoppet over."
+        ),
     )
